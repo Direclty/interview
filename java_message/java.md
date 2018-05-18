@@ -4411,167 +4411,400 @@
                 窗口1 卖出第  1 张票，剩余的票数：0
                 窗口2 卖出第  18 张票，剩余的票数：17
                 </code></pre>
-                
-        * synchronized 修饰符
         
-            * 语法格式
+        * Java中控制线程的几种方式
             
-            synchronized(obj) {
-            	// 同步代码块
-            }
+            > 思路 -> 四种方式 -> 各自优缺点
             
-            * 使用 synchronized 代码块
+            [参考：应该了解的一些并发基础知识](https://mp.weixin.qq.com/s/KuKROR8c4Bc1CdXE6AxB2g)
+            
+            * volatile
+                    
+                > 总结-> 具体分析
+                    
+                * volatile用来保证可见性和有序性，不保证原子性。
                 
-                synchronized 括号的 obj 是同步监视器，Java 允许任何对象作为同步监视器，这里使用 SellTicketDemo 实例来作为同步监视器。代码如下：
+                    volatile保证的可见性
+                    
+                    volatile修饰的属性保证每次读取都能读到最新的值，可是并不会更新已经读了的值，它也无法更新已经读了的值。
+                    
+                    线程A在工作内存中修改共享属性值会立即刷新到主存，线程B/C/D每次通过读写栅栏来达到类似于直接从主存中读取属性值，注意，是类似，网上有些说volatile修饰的变量读写直接在主存中操作，这种说法是不对的，只是表现出类似的行为。
+                    
+                    读写栅栏是一条CPU指令，插入一个读写栅栏， 相当于告诉CPU和编译器先于这个命令的必须先执行，后于这个命令的必须后执行（有序性）。读写栅栏另一个作用是强制更新一次不同CPU的缓存。例如，一个写栅栏会 把这个栅栏前写入的数据刷新到缓存，以此保证可见性。
+                    
+                    volatile保证的有序性
+                    
+                    当对volatile修饰的属性进行读/写操作时，其前面的代码必须已经执行完成且结果对后续的操作可见。在重排序时，以volatile修饰属性的读/写操作代码行为分界线，读/写操作前面的代码不许排序到后面，后面同理不许排序到前面。由此保证有序性.
+                    
+                    <code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;color: rgb(169, 183, 198);background: rgb(40, 43, 46);padding: 0.5em;display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;">{ &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 线程A</span><br> &nbsp; &nbsp;bean = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(248, 35, 117);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">new</span> Bean(); &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 语句A</span><br> &nbsp; &nbsp;inited = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(248, 35, 117);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">true</span>; &nbsp; &nbsp; &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 语句B</span><br>}<br>{ &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 线程B</span><br> &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(248, 35, 117);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">if</span>(inited){ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 语句C</span><br> &nbsp; &nbsp; &nbsp; &nbsp;bean.getAge(); &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(128, 128, 128);word-wrap: inherit !important;word-break: inherit !important;white-space: inherit !important;">// 语句D</span><br> &nbsp; &nbsp;}<br>}<br></code>
+        
+            * synchronized 修饰符
+            
+                * 语法格式
                 
-                <pre><code class="hljs bash" lang="bash">public class SellTicketDemo implements Runnable {
-                
-                	private int ticketNum = 30;
-                	
-                	@Override
-                	public void <span class="hljs-function"><span class="hljs-title">run</span></span>() {
-                		<span class="hljs-keyword">while</span>(<span class="hljs-literal">true</span>) {
-                			synchronized(this) {
-                				<span class="hljs-keyword">if</span>(ticketNum &lt;= 0) {
-                					<span class="hljs-built_in">break</span>;
-                				}
-                				
-                				System.out.println(Thread.currentThread().getName() +<span class="hljs-string">" 卖出第  "</span> + ticketNum + <span class="hljs-string">" 张票，剩余的票数："</span> + --ticketNum);
-                			}
-                		}
-                	}
-                	
-                	public static void main(String[] args) {
-                		
-                		SellTicketDemo sellTicketDemo = new SellTicketDemo();
-                		
-                		Thread thread1 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口1"</span>);
-                		Thread thread2 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口2"</span>);
-                		
-                		thread1.start();
-                		thread2.start();
-                		
-                	}
-                
+                synchronized(obj) {
+                    // 同步代码块
                 }
                 
-                </code></pre>
-                
-                打印结果如下：
-                
-                <pre><code class="hljs bash" lang="bash">窗口1 卖出第  30 张票，剩余的票数：29
-                窗口1 卖出第  29 张票，剩余的票数：28
-                窗口1 卖出第  28 张票，剩余的票数：27
-                窗口1 卖出第  27 张票，剩余的票数：26
-                窗口1 卖出第  26 张票，剩余的票数：25
-                窗口1 卖出第  25 张票，剩余的票数：24
-                窗口1 卖出第  24 张票，剩余的票数：23
-                窗口1 卖出第  23 张票，剩余的票数：22
-                窗口1 卖出第  22 张票，剩余的票数：21
-                窗口1 卖出第  21 张票，剩余的票数：20
-                窗口2 卖出第  20 张票，剩余的票数：19
-                窗口2 卖出第  19 张票，剩余的票数：18
-                窗口2 卖出第  18 张票，剩余的票数：17
-                窗口2 卖出第  17 张票，剩余的票数：16
-                窗口2 卖出第  16 张票，剩余的票数：15
-                窗口2 卖出第  15 张票，剩余的票数：14
-                窗口2 卖出第  14 张票，剩余的票数：13
-                窗口2 卖出第  13 张票，剩余的票数：12
-                窗口2 卖出第  12 张票，剩余的票数：11
-                窗口2 卖出第  11 张票，剩余的票数：10
-                窗口2 卖出第  10 张票，剩余的票数：9
-                窗口2 卖出第  9 张票，剩余的票数：8
-                窗口2 卖出第  8 张票，剩余的票数：7
-                窗口2 卖出第  7 张票，剩余的票数：6
-                窗口2 卖出第  6 张票，剩余的票数：5
-                窗口2 卖出第  5 张票，剩余的票数：4
-                窗口2 卖出第  4 张票，剩余的票数：3
-                窗口2 卖出第  3 张票，剩余的票数：2
-                窗口2 卖出第  2 张票，剩余的票数：1
-                窗口2 卖出第  1 张票，剩余的票数：0
-                </code></pre>
+                * 使用 synchronized 代码块
+                    
+                    synchronized 括号的 obj 是同步监视器，Java 允许任何对象作为同步监视器，这里使用 SellTicketDemo 实例来作为同步监视器。代码如下：
+                    
+                    <pre><code class="hljs bash" lang="bash">public class SellTicketDemo implements Runnable {
+                    
+                        private int ticketNum = 30;
+                        
+                        @Override
+                        public void <span class="hljs-function"><span class="hljs-title">run</span></span>() {
+                            <span class="hljs-keyword">while</span>(<span class="hljs-literal">true</span>) {
+                                synchronized(this) {
+                                    <span class="hljs-keyword">if</span>(ticketNum &lt;= 0) {
+                                        <span class="hljs-built_in">break</span>;
+                                    }
+                                    
+                                    System.out.println(Thread.currentThread().getName() +<span class="hljs-string">" 卖出第  "</span> + ticketNum + <span class="hljs-string">" 张票，剩余的票数："</span> + --ticketNum);
+                                }
+                            }
+                        }
+                        
+                        public static void main(String[] args) {
+                            
+                            SellTicketDemo sellTicketDemo = new SellTicketDemo();
+                            
+                            Thread thread1 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口1"</span>);
+                            Thread thread2 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口2"</span>);
+                            
+                            thread1.start();
+                            thread2.start();
+                            
+                        }
+                    
+                    }
+                    
+                    </code></pre>
+                    
+                    打印结果如下：
+                    
+                    <pre><code class="hljs bash" lang="bash">窗口1 卖出第  30 张票，剩余的票数：29
+                    窗口1 卖出第  29 张票，剩余的票数：28
+                    窗口1 卖出第  28 张票，剩余的票数：27
+                    窗口1 卖出第  27 张票，剩余的票数：26
+                    窗口1 卖出第  26 张票，剩余的票数：25
+                    窗口1 卖出第  25 张票，剩余的票数：24
+                    窗口1 卖出第  24 张票，剩余的票数：23
+                    窗口1 卖出第  23 张票，剩余的票数：22
+                    窗口1 卖出第  22 张票，剩余的票数：21
+                    窗口1 卖出第  21 张票，剩余的票数：20
+                    窗口2 卖出第  20 张票，剩余的票数：19
+                    窗口2 卖出第  19 张票，剩余的票数：18
+                    窗口2 卖出第  18 张票，剩余的票数：17
+                    窗口2 卖出第  17 张票，剩余的票数：16
+                    窗口2 卖出第  16 张票，剩余的票数：15
+                    窗口2 卖出第  15 张票，剩余的票数：14
+                    窗口2 卖出第  14 张票，剩余的票数：13
+                    窗口2 卖出第  13 张票，剩余的票数：12
+                    窗口2 卖出第  12 张票，剩余的票数：11
+                    窗口2 卖出第  11 张票，剩余的票数：10
+                    窗口2 卖出第  10 张票，剩余的票数：9
+                    窗口2 卖出第  9 张票，剩余的票数：8
+                    窗口2 卖出第  8 张票，剩余的票数：7
+                    窗口2 卖出第  7 张票，剩余的票数：6
+                    窗口2 卖出第  6 张票，剩余的票数：5
+                    窗口2 卖出第  5 张票，剩余的票数：4
+                    窗口2 卖出第  4 张票，剩余的票数：3
+                    窗口2 卖出第  3 张票，剩余的票数：2
+                    窗口2 卖出第  2 张票，剩余的票数：1
+                    窗口2 卖出第  1 张票，剩余的票数：0
+                    </code></pre>
+            
+            * synchronized 方法   
+            
+                 * 语法格式: 
+                 
+                 <pre><code class="hljs bash" lang="bash">[修饰符] synchronized [返回值] [方法名](形参...) {
+                        
+                 }
+                 </code></pre>
+                    
+                 * 使用 synchronized 方法: 
+                 
+                   使用同步方法非常简单，直接用 synchronized 修饰多线程操作的方法即可，代码如下：
+                   
+                    <pre><code class="hljs bash" lang="bash">public class SellTicketDemo implements Runnable {
+                    
+                        private int ticketNum = 30;
+                        
+                        @Override
+                        public void <span class="hljs-function"><span class="hljs-title">run</span></span>() {
+                            <span class="hljs-keyword">while</span>(<span class="hljs-literal">true</span>) {
+                    
+                                sellTicket();
+                                
+                            }
+                        }
+                        
+                        public synchronized void <span class="hljs-function"><span class="hljs-title">sellTicket</span></span>() {
+                            <span class="hljs-keyword">if</span>(ticketNum &lt;= 0) {
+                                <span class="hljs-built_in">return</span>;
+                            }
+                            
+                            System.out.println(Thread.currentThread().getName() +<span class="hljs-string">" 卖出第  "</span> + ticketNum + <span class="hljs-string">" 张票，剩余的票数："</span> + --ticketNum);
+                        }
+                        
+                        public static void main(String[] args) {
+                            
+                            SellTicketDemo sellTicketDemo = new SellTicketDemo();
+                            
+                            Thread thread1 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口1"</span>);
+                            Thread thread2 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口2"</span>);
+                            
+                            thread1.start();
+                            thread2.start();
+                            
+                        }
+                    
+                    }
+                    </code></pre>
+                    
+                    打印如下：
+                    
+                    <pre><code class="hljs bash" lang="bash">窗口1 卖出第  30 张票，剩余的票数：29
+                    窗口1 卖出第  29 张票，剩余的票数：28
+                    窗口1 卖出第  28 张票，剩余的票数：27
+                    窗口1 卖出第  27 张票，剩余的票数：26
+                    窗口1 卖出第  26 张票，剩余的票数：25
+                    窗口1 卖出第  25 张票，剩余的票数：24
+                    窗口1 卖出第  24 张票，剩余的票数：23
+                    窗口1 卖出第  23 张票，剩余的票数：22
+                    窗口1 卖出第  22 张票，剩余的票数：21
+                    窗口1 卖出第  21 张票，剩余的票数：20
+                    窗口1 卖出第  20 张票，剩余的票数：19
+                    窗口2 卖出第  19 张票，剩余的票数：18
+                    窗口2 卖出第  18 张票，剩余的票数：17
+                    窗口2 卖出第  17 张票，剩余的票数：16
+                    窗口2 卖出第  16 张票，剩余的票数：15
+                    窗口2 卖出第  15 张票，剩余的票数：14
+                    窗口2 卖出第  14 张票，剩余的票数：13
+                    窗口2 卖出第  13 张票，剩余的票数：12
+                    窗口2 卖出第  12 张票，剩余的票数：11
+                    窗口2 卖出第  11 张票，剩余的票数：10
+                    窗口2 卖出第  10 张票，剩余的票数：9
+                    窗口2 卖出第  9 张票，剩余的票数：8
+                    窗口2 卖出第  8 张票，剩余的票数：7
+                    窗口2 卖出第  7 张票，剩余的票数：6
+                    窗口2 卖出第  6 张票，剩余的票数：5
+                    窗口2 卖出第  5 张票，剩余的票数：4
+                    窗口2 卖出第  4 张票，剩余的票数：3
+                    窗口2 卖出第  3 张票，剩余的票数：2
+                    窗口2 卖出第  2 张票，剩余的票数：1
+                    窗口2 卖出第  1 张票，剩余的票数：0
+                    </code></pre>
+                    
+   * Android中的线程 ：
+                   
+        AsyncTask：
         
-        * synchronized 方法   
+        AsyncTask不同版本的区别：
+                
+   * 线程池
         
-             * 语法格式: 
+        * 什么是线程池
+            
+            * 线程池是指在初始化一个多线程应用程序过程中创建一个线程集合，然后在需要执行新的任务时重用这些线程而不是新建一个线程（提高线程复用，减少性能开销）。线程池中线程的数量通常完全取决于可用内存数量和应用程序的需求。然而，增加可用线程数量是可能的。线程池中的每个线程都有被分配一个任务，一旦任务已经完成了，线程回到池子中然后等待下一次分配任务。
+            
+        * 为什么要用线程池
+            
+            * 线程池改进了一个应用程序的响应时间。由于线程池中的线程已经准备好且等待被分配任务，应用程序可以直接拿来使用而不用新建一个线程。
              
-             <pre><code class="hljs bash" lang="bash">[修饰符] synchronized [返回值] [方法名](形参...) {
-             		
-             }
-             </code></pre>
-                
-             * 使用 synchronized 方法: 
-             
-               使用同步方法非常简单，直接用 synchronized 修饰多线程操作的方法即可，代码如下：
-               
-                <pre><code class="hljs bash" lang="bash">public class SellTicketDemo implements Runnable {
-                
-                	private int ticketNum = 30;
-                	
-                	@Override
-                	public void <span class="hljs-function"><span class="hljs-title">run</span></span>() {
-                		<span class="hljs-keyword">while</span>(<span class="hljs-literal">true</span>) {
-                
-                			sellTicket();
-                			
-                		}
-                	}
-                	
-                	public synchronized void <span class="hljs-function"><span class="hljs-title">sellTicket</span></span>() {
-                		<span class="hljs-keyword">if</span>(ticketNum &lt;= 0) {
-                			<span class="hljs-built_in">return</span>;
-                		}
-                		
-                		System.out.println(Thread.currentThread().getName() +<span class="hljs-string">" 卖出第  "</span> + ticketNum + <span class="hljs-string">" 张票，剩余的票数："</span> + --ticketNum);
-                	}
-                	
-                	public static void main(String[] args) {
-                		
-                		SellTicketDemo sellTicketDemo = new SellTicketDemo();
-                		
-                		Thread thread1 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口1"</span>);
-                		Thread thread2 = new Thread(sellTicketDemo,<span class="hljs-string">"窗口2"</span>);
-                		
-                		thread1.start();
-                		thread2.start();
-                		
-                	}
-                
-                }
-                </code></pre>
-                
-                打印如下：
-                
-                <pre><code class="hljs bash" lang="bash">窗口1 卖出第  30 张票，剩余的票数：29
-                窗口1 卖出第  29 张票，剩余的票数：28
-                窗口1 卖出第  28 张票，剩余的票数：27
-                窗口1 卖出第  27 张票，剩余的票数：26
-                窗口1 卖出第  26 张票，剩余的票数：25
-                窗口1 卖出第  25 张票，剩余的票数：24
-                窗口1 卖出第  24 张票，剩余的票数：23
-                窗口1 卖出第  23 张票，剩余的票数：22
-                窗口1 卖出第  22 张票，剩余的票数：21
-                窗口1 卖出第  21 张票，剩余的票数：20
-                窗口1 卖出第  20 张票，剩余的票数：19
-                窗口2 卖出第  19 张票，剩余的票数：18
-                窗口2 卖出第  18 张票，剩余的票数：17
-                窗口2 卖出第  17 张票，剩余的票数：16
-                窗口2 卖出第  16 张票，剩余的票数：15
-                窗口2 卖出第  15 张票，剩余的票数：14
-                窗口2 卖出第  14 张票，剩余的票数：13
-                窗口2 卖出第  13 张票，剩余的票数：12
-                窗口2 卖出第  12 张票，剩余的票数：11
-                窗口2 卖出第  11 张票，剩余的票数：10
-                窗口2 卖出第  10 张票，剩余的票数：9
-                窗口2 卖出第  9 张票，剩余的票数：8
-                窗口2 卖出第  8 张票，剩余的票数：7
-                窗口2 卖出第  7 张票，剩余的票数：6
-                窗口2 卖出第  6 张票，剩余的票数：5
-                窗口2 卖出第  5 张票，剩余的票数：4
-                窗口2 卖出第  4 张票，剩余的票数：3
-                窗口2 卖出第  3 张票，剩余的票数：2
-                窗口2 卖出第  2 张票，剩余的票数：1
-                窗口2 卖出第  1 张票，剩余的票数：0
-                </code></pre>
+            * 线程池节省了CLR 为每个短生存周期任务创建一个完整的线程的开销并可以在任务完成后回收资源。
+            
+            * 线程池根据当前在系统中运行的进程来优化线程时间片。
+            
+            * 线程池允许我们开启多个任务而不用为每个线程设置属性。
+            
+            * 线程池允许我们为正在执行的任务的程序参数传递一个包含状态信息的对象引用。
+            
+            * 线程池可以用来解决处理一个特定请求最大线程数量限制问题。
+        
+            本质上来讲，我们使用线程池主要就是为了减少了创建和销毁线程的次数，每个工作线程都可以被重复利用，可执行多个任务；节约应用内存（线程开的越多，消耗的内存也就越大，最后死机）
+        
+        * 线程池的作用    
+        
+            线程池作用就是限制系统中执行线程的数量
+            
+            <div>
+                <img src="https://upload-images.jianshu.io/upload_images/5417430-e6280fbf9d7fd0c2.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/700" />
+            </div>
+            
+            <div>
+               <img src="https://upload-images.jianshu.io/upload_images/5417430-fd398e41f1c3b25d.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/382" />
+            </div>
+            
+            <div>
+                <img src="https://upload-images.jianshu.io/upload_images/5417430-3e68c3f1e21b3190.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/601" />
+            </div>
+            
+          1：int corePoolSize （core：核心的） = >  该线程池中核心线程数最大值
+          
+          什么是核心线程：线程池新建线程的时候，如果当前线程总数小于 corePoolSize ，则新建的是核心线程；如果超过corePoolSize，则新建的是非核心线程。
+          
+          核心线程默认情况下会一直存活在线程池中，即使这个核心线程啥也不干(闲置状态)。
+          
+          如果指定ThreadPoolExecutor的 allowCoreThreadTimeOut 这个属性为true，那么核心线程如果不干活(闲置状态)的话，超过一定时间( keepAliveTime)，就会被销毁掉
+          
+          2：int maximumPoolSize  = >  该线程池中线程总数的最大值
+          
+          线程总数计算公式 = 核心线程数 + 非核心线程数。
+          
+          3：long keepAliveTime  = >  该线程池中非核心线程闲置超时时长
+          
+          注意：一个非核心线程，如果不干活(闲置状态)的时长，超过这个参数所设定的时长，就会被销毁掉。但是，如果设置了  allowCoreThreadTimeOut = true，则会作用于核心线程。
+          
+          4：TimeUnit unit  = > （时间单位）
+          
+          首先，TimeUnit是一个枚举类型，翻译过来就是时间单位，我们最常用的时间单位包括：
+          
+          MILLISECONDS ： 1毫秒 、SECONDS ： 秒、MINUTES ： 分、HOURS ： 小时、DAYS ： 天
+          
+          5：BlockingQueue<Runnable> workQueue = >( Blocking：阻塞的，queue：队列)
+          
+          [参考：必须要理清的Java线程池](https://www.jianshu.com/p/50fffbf21b39)
         
 ## Jvm虚拟机
+
+   * JAVA中jvm的基本结构  
+    
+        * Java虚拟机是什么？   
+        
+           > 注意：这里我是要告诉你，一个java的application对应了一个java.exe/javaw.exe（java.exe和javaw.exe你可以把它看成java的虚拟机，一个有窗口界面一个没有）。你运行几个application就有几个java.exe/javaw.exe。或者更加具体的说，你运行了几个main函数就启动了几个java应用，同时也启动了几个java的虚拟机。
+        
+            什么是java虚拟机，什么是java的虚拟机实例？java的虚拟机相当于我们的一个java类，而java虚拟机实例，相当我们new一个java类，不过java虚拟机不是通过new这个关键字而是通过java.exe或者javaw.exe来启动一个虚拟机实例。
+        
+        * jvm的生命周期是什么？
+        
+            >  当main函数的for循环打印完的时候，程序居然没有退出，而等到整个new Thread()里的匿名类的run方法执行结束后，javaw.exe才退出。我们知道在c++的win32编程（CreatThread()），main函数执行完了，寄宿线程也跟着退出了，在c#中如果你用线程池（ThreadPool）的话，结论也是如此，线程都跟着宿主进程的结束而结束。但是在java中貌似和我们的认知有很大的出入，这是为什么呢？这是由于java的虚拟机种有两种线程，一种叫叫守护线程，一种叫非守护线程，main函数就是个非守护线程，虚拟机的gc就是一个守护线程。java的虚拟机中，只要有任何非守护线程还没有结束，java虚拟机的实例都不会退出，所以即使main函数这个非守护线程退出，但是由于在main函数中启动的匿名线程也是非守护线程，它还没有结束，所以jvm没办法退出(有没有想干坏事的感觉？？)。          
+             
+            java虚拟机的生命周期，当一个java应用main函数启动时虚拟机也同时被启动，而只有当在虚拟机实例中的所有非守护进程都结束时，java虚拟机实例才结束生命。    
+             
+        * java虚拟机的体系结构是什么？
+        
+            <img src="http://img.my.csdn.net/uploads/201212/13/1355396896_8783.jpg" />
+            
+            操作系统的内存基本结构：
+            
+            <div>
+                <src="http://img.my.csdn.net/uploads/201212/14/1355455229_1817.jpg" />
+            </div>
+            
+            操作系统中的jvm：
+            
+            <div>
+                <src="http://img.my.csdn.net/uploads/201212/14/1355455356_5266.jpg" />
+            </div>
+            
+            操作系统+jvm的内存简单布局：
+            
+            <div>
+                <img src="http://img.my.csdn.net/uploads/201212/14/1355455967_5681.jpg"/>
+            </div>
+            
+            jvm的内存结构居然和操作系统的结构惊人的一致
+            
+            <div>
+                <img src="http://img.my.csdn.net/uploads/201212/14/1355456425_2189.jpg"/>
+            </div>
+            
+            jvm的设计的模型其实就是操作系统的模型
+            
+            <div>
+                <img src="http://img.my.csdn.net/uploads/201212/15/1355550019_9953.jpg" />
+            </div>
+            
+            多了一个pc寄存器，我为什么要画出来，主要是要告诉你，所谓pc寄存器，无论是在虚拟机中还是在我们虚拟机所寄宿的操作系统中功能目的是一致的，计算机上的pc寄存器是计算机上的硬件，本来就是属于计算机，（这一点对于学过汇编的同学应该很容易理解，有很多的寄存器eax，esp之类的32位寄存器，jvm里的寄存器就相当于汇编里的esp寄存器），计算机用pc寄存器来存放“伪指令”或地址，而相对于虚拟机，pc寄存器它表现为一块内存(一个字长，虚拟机要求字长最小为32位)，虚拟机的pc寄存器的功能也是存放伪指令，更确切的说存放的是将要执行指令的地址，它甚至可以是操作系统指令的本地地址，当虚拟机正在执行的方法是一个本地方法的时候，jvm的pc寄存器存储的值是undefined，所以你现在应该很明确的知道，虚拟机的pc寄存器是用于存放下一条将要执行的指令的地址(字节码流)。
+            
+            在深入
+            
+            <div>
+                <img src="http://img.my.csdn.net/uploads/201212/15/1355571501_9669.jpg" />
+            </div>
+            
+            这个图是要告诉你，当一个classLoder启动的时候，classLoader的生存地点在jvm中的堆，然后它会去主机硬盘上将A.class装载到jvm的方法区，方法区中的这个字节文件会被虚拟机拿来new A字节码()，然后在堆内存生成了一个A字节码的对象，然后A字节码这个内存文件有两个引用一个指向A的class对象，一个指向加载自己的classLoader，如下图。
+            
+            <img src="http://img.my.csdn.net/uploads/201212/14/1355495666_4639.jpg" />
+            
+            那么方法区中的字节码内存块，除了记录一个class自己的class对象引用和一个加载自己的ClassLoader引用之外，还记录了什么信息呢？？我们还是看图，然后我会讲给你听，听过一遍之后一辈子都不会忘记。
+            
+            <img src="http://img.my.csdn.net/uploads/201212/15/1355531464_2120.jpg" />
+            
+            <div class="dp-highlighter bg_java"><div class="bar"><div class="tools"><b>[java]</b> <a href="#" class="ViewSource" title="view plain" onclick="dp.sh.Toolbar.Command('ViewSource',this);return false;">view plain</a><span data-mod="popu_168"> <a href="#" class="CopyToClipboard" title="copy" onclick="dp.sh.Toolbar.Command('CopyToClipboard',this);return false;">copy</a><div style="position: absolute; left: 498px; top: 8571px; width: 16px; height: 16px; z-index: 99;"><embed id="ZeroClipboardMovie_4" src="https://csdnimg.cn/public/highlighter/ZeroClipboard.swf" loop="false" menu="false" quality="best" bgcolor="#ffffff" width="16" height="16" name="ZeroClipboardMovie_4" align="middle" allowscriptaccess="always" allowfullscreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" flashvars="id=4&amp;width=16&amp;height=16" wmode="transparent"></div><div style="position: absolute; left: 498px; top: 8571px; width: 16px; height: 16px; z-index: 99;"><embed id="ZeroClipboardMovie_8" src="https://csdnimg.cn/public/highlighter/ZeroClipboard.swf" loop="false" menu="false" quality="best" bgcolor="#ffffff" width="16" height="16" name="ZeroClipboardMovie_8" align="middle" allowscriptaccess="always" allowfullscreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" flashvars="id=8&amp;width=16&amp;height=16" wmode="transparent"></div></span><span data-mod="popu_169"> <a href="#" class="PrintSource" title="print" onclick="dp.sh.Toolbar.Command('PrintSource',this);return false;">print</a></span><a href="#" class="About" title="?" onclick="dp.sh.Toolbar.Command('About',this);return false;">?</a></div></div><ol start="1" class="dp-j"><li class="alt"><span><span class="keyword">package</span><span>&nbsp;test;</span><span class="keyword">import</span><span>&nbsp;java.io.Serializable;</span><span class="keyword">public</span><span>&nbsp;</span><span class="keyword">final</span><span>&nbsp;</span><span class="keyword">class</span><span>&nbsp;ClassStruct&nbsp;</span><span class="keyword">extends</span><span>&nbsp;Object&nbsp;</span><span class="keyword">implements</span><span>&nbsp;Serializable&nbsp;{</span><span class="comment">//1.类信息</span><span>&nbsp;&nbsp;</span></span></li><li class=""><span>&nbsp;<span class="comment">//2.对象字段信息</span><span>&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;<span class="keyword">private</span><span>&nbsp;String&nbsp;name;&nbsp;&nbsp;</span></span></li><li class=""><span>&nbsp;<span class="keyword">private</span><span>&nbsp;</span><span class="keyword">int</span><span>&nbsp;id;&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;</span></li><li class=""><span>&nbsp;<span class="comment">//4.常量池</span><span>&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;<span class="keyword">public</span><span>&nbsp;</span><span class="keyword">final</span><span>&nbsp;</span><span class="keyword">int</span><span>&nbsp;CONST_INT=</span><span class="number">0</span><span>;&nbsp;&nbsp;</span></span></li><li class=""><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">public</span><span>&nbsp;</span><span class="keyword">final</span><span>&nbsp;String&nbsp;CONST_STR=</span><span class="string">"CONST_STR"</span><span>;&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></li><li class=""><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">//5.类变量区</span><span>&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">public</span><span>&nbsp;</span><span class="keyword">static</span><span>&nbsp;String&nbsp;static_str=</span><span class="string">"static_str"</span><span>;&nbsp;&nbsp;</span></span></li><li class=""><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></li><li class="alt"><span>&nbsp;&nbsp;&nbsp;</span></li><li class=""><span>&nbsp;<span class="comment">//3.方法信息</span><span>&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;<span class="keyword">public</span><span>&nbsp;</span><span class="keyword">static</span><span>&nbsp;</span><span class="keyword">final</span><span>&nbsp;String&nbsp;getStatic_str&nbsp;()</span><span class="keyword">throws</span><span>&nbsp;Exception{&nbsp;&nbsp;</span></span></li><li class=""><span>&nbsp;&nbsp;<span class="keyword">return</span><span>&nbsp;ClassStruct.static_str;&nbsp;&nbsp;</span></span></li><li class="alt"><span>&nbsp;}}&nbsp;&nbsp;</span></li></ol></div>
+            
+            所以各个信息段记录的信息可以从我们的类结构中得到，不需要你硬背，你认真的看过我下面的描述一遍估计就不可能会忘记了：
+            
+           1.类信息：修饰符(public final)
+    
+             是类还是接口(class,interface)
+
+             类的全限定名(Test/ClassStruct.class)
+
+             直接父类的全限定名(java/lang/Object.class)
+
+             直接父接口的权限定名数组(java/io/Serializable)
+    
+          也就是 public final class ClassStruct extends Object implements Serializable这段描述的信息提取
+    
+           2.字段信息：修饰符(pirvate)
+
+             字段类型(java/lang/String.class)
+
+             字段名(name)
+    
+            也就是类似private String name;这段描述信息的提取
+    
+           3.方法信息:修饰符(public static final)
+    
+             方法返回值(java/lang/String.class)
+
+             方法名(getStatic_str)
+
+             参数需要用到的局部变量的大小还有操作数栈大小(操作数栈我们后面会讲)
+
+             方法体的字节码(就是花括号里的内容)
+
+             异常表(throws Exception)
+    
+           也就是对方法public static final String getStatic_str ()throws Exception的字节码的提取
+           4.常量池:
+    
+            4.1.直接常量：
+
+             1.1CONSTANT_INGETER_INFO整型直接常量池public final int CONST_INT=0;
+
+             1.2CONSTANT_String_info字符串直接常量池   public final String CONST_STR="CONST_STR";
+
+             1.3CONSTANT_DOUBLE_INFO浮点型直接常量池
+
+             等等各种基本数据类型基础常量池(待会我们会反编译一个类，来查看它的常量池等。)
+
+             4.2.方法名、方法描述符、类名、字段名，字段描述符的符号引用
+
+            也就是所以编译器能够被确定，能够被快速查找的内容都存放在这里，它像数组一样通过索引访问，就是专门用来做查找的。
+
+            编译时就能确定数值的常量类型都会复制它的所有常量到自己的常量池中，或者嵌入到它的字节码流中。作为常量池或者字节码流的一部分，编译时常量保存在方法区中，就和一般的类变量一样。但是当一般的类变量作为他们的类型的一部分数据而保存的时候，编译时常量作为使用它们的类型的一部分而保存
+            
+            也就是所以编译器能够被确定，能够被快速查找的内容都存放在这里，它像数组一样通过索引访问，就是专门用来做查找的。
+            
+             编译时就能确定数值的常量类型都会复制它的所有常量到自己的常量池中，或者嵌入到它的字节码流中。作为常量池或者字节码流的一部分，编译时常量保存在方法区中，就和一般的类变量一样。但是当一般的类变量作为他们的类型的一部分数据而保存的时候，编译时常量作为使用它们的类型的一部分而保存
+            
+             5.类变量：
+        
+             就是静态字段( public static String static_str="static_str";)
+
+             虚拟机在使用某个类之前，必须在方法区为这些类变量分配空间。
+        
+             6.一个到classLoader的引用，通过this.getClass().getClassLoader()来取得为什么要先经过class呢？思考一下，然后看第七点的解释，再回来思考
+        
+             7.一个到class对象的引用，这个对象存储了所有这个字节码内存块的相关信息。所以你能够看到的区域，比如：类信息，你可以通过this.getClass().getName()取得
+        
+             所有的方法信息，可以通过this.getClass().getDeclaredMethods()，字段信息可以通过this.getClass().getDeclaredFields()，等等，所以在字节码中你想得到的，调用的，通过class这个引用基本都能够帮你完成。因为他就是字节码在内存块在堆中的一个对象
+        
+             8.方法表，如果学习c++的人应该都知道c++的对象内存模型有一个叫虚表的东西，java本来的名字就叫c++- -，它的方法表其实说白了就是c++的虚表，它的内容就是这个类的所有实例可能被调用的所有实例方法的直接引用。也是为了动态绑定的快速定位而做的一个类似缓存的查找表，它以数组的形式存在于内存中。不过这个表不是必须存在的，取决于虚拟机的设计者，以及运行虚拟机的机器是否有足够的内存
