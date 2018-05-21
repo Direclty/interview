@@ -4669,6 +4669,155 @@
           5：BlockingQueue<Runnable> workQueue = >( Blocking：阻塞的，queue：队列)
           
           [参考：必须要理清的Java线程池](https://www.jianshu.com/p/50fffbf21b39)
+          
+        * 线程池（[郭霖转载：Java线程池线程复用的秘密](https://mp.weixin.qq.com/s?__biz=MzA5MzI3NjE2MA==&mid=2650243061&idx=1&sn=89013ccef91c82edc844a57889da95ca&chksm=88638e9abf14078c881dc41ab67ddd9bb41d61291ea335a474b63d99129e9133b9f857f2a863&mpshare=1&scene=23&srcid=0521FckwVxuRXClqRKWlw6iF#rd)）       
+            
+            > 讲解思路 -> 创建线程池的参数 -> 构造方法 -> 
+        
+            * 创建线程池之后需要重写的方法
+            
+                * corePoolSize，核心线程的大小
+                
+                * runnableTaskQueue，任务队列，保存等待执行的任务的阻塞队列（对线程池运行逻辑有很大影响），可选：
+                    
+                    - 1、ArrayBlockingQueue：是一个基于数组的有界阻塞队列，按FIFO(先进先出)
+                    
+                    - 2、LinkedBlockingQueue：是一个基于链表结构的阻塞队列，按FIFO排序，吞吐量大于ArrayBlockingQueue，静态工厂方法：Executor.newFixedThreadPool()；
+                    
+                    - 3、SynchronousQueue：是一个不存储元素的阻塞队列，每个插入操作都必须等到上一个元素被移除，否则一直处于阻塞状态吞吐量大于LinkedBlockingQueue，静态工作方法：Executors.newCachedThreadPool使用了这个队列
+                    
+                    - 4、priorityQueue：是一个有优先顺序的无限阻塞队列
+                
+                * maximumPoolSize，线程池最大的大小：最大的线程数量
+                    
+                    > 注意使用无界队列之后这个参数无效
+                    
+                * keepAliveTime：线程结束之后，保存的时间
+                
+                * ThreadFactory：创建线程池的工厂类
+                
+                * RejectedExecutionHandler：线程池饱和后的执行方式，默认采用的是AbortPolicy：jdk提供四种方式：
+                   
+                   - 1、AbortPolicy，直接抛出异常
+                   
+                   - 1、CallerRunsPolicy，只用调用者所在的线程来运行任务
+                   
+                   - 2、DiscardOldesPolicy，丢弃最后一个执行的任务，并运行新的任务
+                   
+                   - 1、DiscardPolicy：不处理，丢弃掉
+                   
+                * TimeUnit：keepAlive的时间单位，天（Days） 、小时(HOURS) 、分(MINUTES) 、毫秒(MILLISECONDS)、微秒(MICROSECONDS)、和毫微秒(NANOSECONDS, 千分之一微秒)。
+                
+                 我们来看看 Executors.newCachedThreadPool() 里面的构造：
+                
+                <pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">public</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">static</span> ExecutorService <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">newCachedThreadPool</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">()</span> </span>{<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">return</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> ThreadPoolExecutor(<span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">0</span>, Integer.MAX_VALUE,<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">60L</span>, TimeUnit.SECONDS,<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> SynchronousQueue&lt;Runnable&gt;());<br> &nbsp; &nbsp;}<br></code></pre>
+                
+                * 构造函数：
+                    
+                     - 1、corePoolSize为零，核心线程数为0
+                     
+                     - 2、maximumPoolSize 为Integer.MAX_VALUE => 可以无限的向线程池中添加任务不会执行reject策略
+                     
+                     - 3、keepAliveTime和unit决定线程的存活时间是60s，意味着一个空线程60s之后才会被回收
+                     
+                     - 4、reject策略默认的是AbortPolicy，但是由于CacheThreadSize没有限制，所以不会抛出异常
+                     
+                     - 5、runnableTaskQueue采用的是synchronousQueue，所以不存储元素的队列，没插入一个操作要等到另一个线程调用移除操作，否则插入操作一直阻塞，他是实现CacheThreadPool的关键之一
+                     
+                     - 扩展知识：SynchronousQueue 的详细原理参考：
+                       
+                        > https://blog.csdn.net/yanyan19880509/article/details/52562039
+                        
+                * 适用执行很多短时间的任务
+                
+                    - 1、CacheThreadPool如何实现，线程保留60s ？
+                    
+                    - 2、CacheThreadPool如何实现复用的 ？
+                    
+                        * code
+                        
+                            <span style="font-size: 14px;">首先我们向线程池提交任务一般用 execute() 方法，我们就从这里入手：</span>
+                            <section class="" style="font-size: 16px;color: rgb(62, 62, 62);line-height: 1.6;letter-spacing: 0px;"><pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">public</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">void</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">execute</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(Runnable command)</span> </span>{<br> &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (command == <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>)<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">throw</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> NullPointerException();<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//1.如果当前存在的线程少于corePoolSize，会新建线程来执行任务。然后各种检查状态</span><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> c = ctl.get();<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (workerCountOf(c) &lt; corePoolSize) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (addWorker(command, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">true</span>))<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">return</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;c = ctl.get();<br> &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//2.如果task被成功加入队列，还是要double-check</span><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (isRunning(c) &amp;&amp; workQueue.offer(command)) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> recheck = ctl.get();<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (! isRunning(recheck) &amp;&amp; remove(command))<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;reject(command);<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">else</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (workerCountOf(recheck) == <span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">0</span>)<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;addWorker(<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>);<br> &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//3.如果task不能加入到队列，会尝试创建线程。如果创建失败，走reject流程</span><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">else</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (!addWorker(command, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>))<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;reject(command);<br></code></pre></section>
+                            
+                            - 第一步：如果小于当前的核心线程数，就调用addWork()，但是由于CacheThreadPool的核心线程数为0,所以这一步跳过不会创建线程池
+                           
+                            - 第二步：检查是够运行，然后调用workQueue.offer()，添加task。workQueue是一个BlockingQueue，BlockingQueue.offer()，是向队列插入元素，
+                            如果成功就返回true。CacheThreadPool采用的是SynchronousQueue,这里当任务入队列成功后，再次检查了线程池状态，还是运行状态就继续。然后检查当前运行线程数量，如果当前没有运行中的线程，调用 addWorker() ，第一个参数为 null 第二个参数是 false ，标明了非核心线程。
+                            
+                            为什么第一参数是null?
+                            
+                            - 查看代码
+                                
+                                <section class="" style="font-size: 16px;color: rgb(62, 62, 62);line-height: 1.6;letter-spacing: 0px;"><pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">private</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">addWorker</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(Runnable firstTask, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> core)</span> </span>{<br> &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//...这里有一段cas代码，通过双重循环目的是通过cas增加线程池线程个数</span><br> &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> workerStarted = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>;<br> &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> workerAdded = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>;<br> &nbsp; &nbsp; Worker w = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>;<br> &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">try</span> {<br> &nbsp; &nbsp; &nbsp; &nbsp; w = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> Worker(firstTask);<br> &nbsp; &nbsp; &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">final</span> Thread t = w.thread;<br> &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//...省略部分代码</span><br> &nbsp; &nbsp; &nbsp;workers.add(w);<br> &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//...省略部分代码</span><br> &nbsp; &nbsp; &nbsp;workerAdded=<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">true</span>;<br> &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (workerAdded) {<br> &nbsp; &nbsp; &nbsp; &nbsp;t.start();<br> &nbsp; &nbsp; &nbsp; &nbsp;workerStarted = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">true</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp;}<br> }<br></code></pre></section>
+                                
+                                第一步是一段 cas 代码通过双重循环检查状态并为当前线程数扩容 +1，第二部是将任务包装成 worker 对象，用线程安全的方式添加到当前工作 HashSet() 里，并开始执行线程。
+                                
+                                但是我们注意到，task 为 null ，Worker 里面的 firstTask 是 null ，那么 wokrer thread 里面是怎么工作下去的呢?继续跟踪代码，Worker 类继承 Runnable 接口，因此 worker thread start 后，走的是 worker.run()方法：
+                            
+                                <pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">public</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">void</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">run</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">()</span> </span>{<br> &nbsp; &nbsp;runWorker(<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">this</span>);<br>}<br></code></pre>
+                                
+                                <section class="" style="font-size: 16px;color: rgb(62, 62, 62);line-height: 1.6;letter-spacing: 0px;"><pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">final</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">void</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">runWorker</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(Worker w)</span> </span>{<br> &nbsp; &nbsp; &nbsp; &nbsp;Thread wt = Thread.currentThread();<br> &nbsp; &nbsp; &nbsp; &nbsp;Runnable task = w.firstTask;<br> &nbsp; &nbsp; &nbsp; &nbsp;w.firstTask = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp;w.unlock(); <span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">// allow interrupts</span><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> completedAbruptly = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">true</span>;<br> &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">while</span> (task != <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span> || (task = getTask()) != <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//..省略</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">try</span> {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;beforeExecute(wt, task);<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Throwable thrown = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">try</span> {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;task.run();<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;} <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">catch</span> (Exception x) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;thrown = x; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">throw</span> x;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码</span><br> &nbsp; &nbsp;}<br></code></pre></section>
+                                
+                                * 可以看到这里判断了 firstTask 如果为空，就调用 getTask() 方法。getTask() 方法是从 workQueue 拉取任务。所以到这里之前的疑问就解决了，调用 addWorker(null,false) 的目的是启动一个线程，然后再 workQueue 拉取任务执行。继续跟踪 getTask() 方法：
+                                
+                               <section class="" style="font-size: 16px;color: rgb(62, 62, 62);line-height: 1.6;letter-spacing: 0px;"><pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">private</span> Runnable <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">getTask</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">()</span> </span>{<br> &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> timedOut = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">// Did the last poll() time out?</span><br><br> &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">for</span> (;;) {<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//..省略</span><br><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">// Are workers subject to culling?</span><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> timed = allowCoreThreadTimeOut || wc &gt; corePoolSize;<br> &nbsp; &nbsp; &nbsp; <span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//..省略</span><br><br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">try</span> {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Runnable r = timed ?<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;workQueue.take();<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (r != <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>)<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">return</span> r;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;timedOut = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">true</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp;} <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">catch</span> (InterruptedException retry) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;timedOut = <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>;<br> &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp;}<br>}<br></code></pre></section>
+                               
+                               终于看到从 workQueue 拉取元素了。 CacheThreadPool 构造的时候 corePoolSize 是 0，allowCoreThreadTimeOut 默认是 false ，因此 timed 一直为 true ,会调用 workQueue.poll() 从队列拉取一个任务，等待 60s， 60s后超时,线程就会会被回收。如果 60s 内，进来一个任务，会发生什么情况?任务在 execute() 方法里，会被 offer() 进 workQueue ，因为目前队列是空的，所以 offer 进来后，马上会被阻塞的 worker.poll() 拉取出来，然后在 runWorker() 方法里执行，因为线程没有新建所以达到了线程的复用。至此，我们已经明白了线程复用的秘密，以及线程保留 60s 的实现方法。回到 execute() 方法，还有剩下一个逻辑
+                               
+                               <pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//3.如果task不能加入到队列，会尝试创建线程。如果创建失败，走reject流程</span><br><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">else</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (!addWorker(command, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>))<br> &nbsp; &nbsp;reject(command);<br></code></pre>
+                               
+                               因为 CacheThreadPool 用的 SynchronousQueue ,所以没有空闲线程， SynchronousQueue 有一个元素正在被阻塞，那么就不能加入到队列里。会走到 addWorker(commond,false) 这里，这个时候因为就会新建线程来执行任务。如果 addWorker() 返回 false 才会走 reject 策略。那么什么时候 addWorker() 什么时候会返回false呢？我们看代码：
+                               
+                               <pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">private</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">addWorker</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(Runnable firstTask, <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">boolean</span> core)</span> </span>{<br> &nbsp; &nbsp; &nbsp; &nbsp;retry:<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">for</span> (;;) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> c = ctl.get();<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> rs = runStateOf(c);<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">1</span>.线程池已经shutdown，或者提交进来task为ull且队列也是空，返回<span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">if</span> <span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(rs &gt;= SHUTDOWN &amp;&amp;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;! (rs == SHUTDOWN &amp;&amp;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; firstTask == <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span> &amp;&amp;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ! workQueue.isEmpty()</span>))<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;return <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span></span>;<br><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">for</span> (;;) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> wc = workerCountOf(c);<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">2</span>.如果需要创建核心线程但是当前线程已经大于corePoolSize 返回<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span>，如果是非核心线程但是已经超出maximumPoolSize，返回<span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">if</span> <span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(wc &gt;= CAPACITY ||<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;wc &gt;= (core ? corePoolSize : maximumPoolSize)</span>)<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;return <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">false</span></span>;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (compareAndIncrementWorkerCount(c))<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">break</span> retry;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;c = ctl.get(); &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">// Re-read ctl</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (runStateOf(c) != rs)<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">continue</span> retry;<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码。。。</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (rs &lt; SHUTDOWN ||<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(rs == SHUTDOWN &amp;&amp; firstTask == <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">null</span>)) {<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">if</span> (t.isAlive())<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">throw</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> IllegalThreadStateException();<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码。。。</span><br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp; &nbsp; &nbsp; &nbsp;}<br> &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(127, 159, 127);word-wrap: inherit !important;word-break: inherit !important;">//省略代码。。。</span><br> &nbsp; &nbsp; &nbsp;}<br></code></pre>
+                               
+                               addWorker() 有以下情况会返回 false ：
+                               
+                               1、线程池已经 shutdown，或者提交进来 task 为ull且同时任务队列也是空，返回 false。
+                               
+                               2、如果需要创建核心线程但是当前线程已经大于 corePoolSize 返回 false，如果是非核心线程但是已经超出 maximumPoolSize ，返回 false。
+                               
+                               3、创建线程后，检查是否已经启动。
+                               
+                               我们逐条检查。第一点只有线程池被 shutDown() 才会出现。第二点由于 CacheThreadPool 的 corePoolSize 是 0 ， maximumPoolSize  是 Intger.MAX_VALUE ，所以也不会出现。第三点是保护性错误，我猜因为线程允许通过外部的 ThreadFactory 创建，所以检查了一下是否外部已经 start，如果开发者编码规范，一般这种情况也不会出现。
+                               
+                               综上，在线程池没有 shutDown 的情况下，addWorker() 不会返回 false ，不会走reject流程，所以理论上 CacheThreadPool 可以一直提交任务，符合CacheThreadPool注释里的描述。
+                ### 引申
+                
+                Executors 还提供了这么一个方法 Executors.newFixedThreadPool(4) 来创建一个有固定线程数量的线程池，我们看看创建的参数：
+                
+                <pre style="font-size: inherit;color: inherit;line-height: inherit;margin-top: 0px;margin-bottom: 0px;padding: 0px;"><code class="" style="margin-right: 2px;margin-left: 2px;line-height: 15px;font-size: 11px;word-spacing: -3px;letter-spacing: 0px;font-family: Consolas, Inconsolata, Courier, monospace;border-radius: 0px;padding: 0.5em;background: rgb(63, 63, 63);color: rgb(220, 220, 220);display: block !important;word-wrap: normal !important;word-break: normal !important;overflow: auto !important;"><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;"><span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">public</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">static</span> ExecutorService <span class="" style="font-size: inherit;line-height: inherit;color: rgb(239, 239, 143);word-wrap: inherit !important;word-break: inherit !important;">newFixedThreadPool</span><span class="" style="font-size: inherit;color: inherit;line-height: inherit;word-wrap: inherit !important;word-break: inherit !important;">(<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">int</span> nThreads)</span> </span>{<br> &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">return</span> <span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> ThreadPoolExecutor(nThreads, nThreads,<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(140, 208, 211);word-wrap: inherit !important;word-break: inherit !important;">0L</span>, TimeUnit.MILLISECONDS,<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class="" style="font-size: inherit;line-height: inherit;color: rgb(227, 206, 171);word-wrap: inherit !important;word-break: inherit !important;">new</span> LinkedBlockingQueue&lt;Runnable&gt;());<br> &nbsp; &nbsp;}<br></code></pre>
+                
+                参数中核心线程和最大线程一样，线程保留时间 0 ，使用 LinkedBlockingQueue 作为任务队列，这样的线程池有什么样的特性呢？我们看看注释说明，大意是说这是一个有着固定线程数量且使用无界队列作为线程队列的线程池。如果有新的任务提交，但是没有线程可用，这个任务会一直等待直到有可用的线程。如果一个线程因为异常终止了，当线程不够用的时候会再创建一个出来。线程会一直保持，直到线程池 shutDown。
+                
+                和 CacheThreadPool 相比，FixedThreadPool 注释里描述的特性有几个不同的地方。
+                
+                - 1.因为 corePoolSize == maximumPoolSize ，所以FixedThreadPool只会创建核心线程。
+                
+                - 2.在 getTask() 方法，如果队列里没有任务可取，线程会一直阻塞在 LinkedBlockingQueue.take() ，线程不会被回收。
+                
+                - 3.由于线程不会被回收，会一直卡在阻塞，所以没有任务的情况下， FixedThreadPool 占用资源更多。
+                
+                FixedThreadPool 和 CacheThreadPool 也有相同点，都使用无界队列，意味着可用一直向线程池提交任务，不会触发 reject 策略。              
+                
+                ### 总结
+                    
+                好了,又到了总结的时候,相信各位认真看完的应该对链表的基本操作非常熟悉了.
+                
+                CacheThreadPool 的运行流程如下：
+                
+                - 1、提交任务进线程池。
+                
+                - 2、因为 corePoolSize 为0的关系，不创建核心线程。
+                
+                - 3、尝试将任务添加到 SynchronousQueue 队列。
+                
+                - 4、如果SynchronousQueue 入列成功，等待被当前运行的线程空闲后拉取执行。如果当前运行线程为0，调用addWorker( null , false )创建一个非核心线程出来，然后从 SynchronousQueue 拉取任务并在当前线程执行，实现线程的复用。
+                
+                - 5、如果 SynchronousQueue 已有任务在等待，入列失败。因为 maximumPoolSize 无上限的原因，创建新的非核心线程来执行任务。
+                
+                - 6、纵观整个流程，通过设置 ThreadPoolExecutor 的几个参数，并加上应用 SynchronousQueue 的特性，然后在 ThreadPoolExecutor 的运行框架下，构建出了一个可以线程复用的线程池。ThreadPoolExecutor 还有很强的扩展性，可以通过自定义参数来实现不同的线程池。这么牛X的代码，这辈子写是不可能写得出来了，争取能完全读懂吧。。
+                            
+                    
         
 ## Jvm虚拟机
 
@@ -4808,3 +4957,413 @@
              所有的方法信息，可以通过this.getClass().getDeclaredMethods()，字段信息可以通过this.getClass().getDeclaredFields()，等等，所以在字节码中你想得到的，调用的，通过class这个引用基本都能够帮你完成。因为他就是字节码在内存块在堆中的一个对象
         
              8.方法表，如果学习c++的人应该都知道c++的对象内存模型有一个叫虚表的东西，java本来的名字就叫c++- -，它的方法表其实说白了就是c++的虚表，它的内容就是这个类的所有实例可能被调用的所有实例方法的直接引用。也是为了动态绑定的快速定位而做的一个类似缓存的查找表，它以数组的形式存在于内存中。不过这个表不是必须存在的，取决于虚拟机的设计者，以及运行虚拟机的机器是否有足够的内存
+             
+             > 总结： 首先，当一个程序启动之前，它的class会被类装载器装入方法区(不好听，其实这个区我喜欢叫做Permanent区)，执行引擎读取方法区的字节码自适应解析，边解析就边运行（其中一种方式），然后pc寄存器指向了main函数所在位置，虚拟机开始为main函数在java栈中预留一个栈帧（每个方法都对应一个栈帧），然后开始跑main函数，main函数里的代码被执行引擎映射成本地操作系统里相应的实现，然后调用本地方法接口，本地方法运行的时候，操纵系统会为本地方法分配本地方法栈，用来储存一些临时变量，然后运行本地方法，调用操作系统APIi等等。          
+             
+        [参考：java之jvm学习笔记十三(jvm基本结构)](https://blog.csdn.net/yfqnihao/article/details/8289363)
+   
+#jvm讲解第二篇
+   
+   [参考：一篇简单易懂的原理文章，让你把JVM玩弄与手掌之中](https://www.jianshu.com/p/63fe09fe1a60)
+   
+   * 讲解思路：
+   
+        - 一、JVM的原理
+            
+            - 1.1、jvm组成和运行原理：
+            
+                - 1.1.1、jvm的组成
+                    
+                    - 1.1.1.1、JVM在JDK中的位置。
+                    
+                    - 1.1.1.2、JVM的组成
+                    
+                - 1.1.2、jvm运行原理简介
+                    
+        - 二、JVM的内存管理和垃圾回收
+            
+            - 2.1、栈的管理
+            
+            - 2.2、堆的管理
+            
+            - 2.3、垃圾回收
+            
+        - 三、JVM的数据格式规范和Class文件
+           
+           - 3.1、数据类型规范
+           
+           - 3.1、字节码文件
+           
+           - 3.1、jvm指令集
+           
+           - 3.1、数据类型规范
+        
+        - 四、一个java类的实例分析
+        
+        - 五、关于jvm优化
+            
+            - 5.1、gc策略
+            
+            - 5.2、内存申请过程
+            
+            - 5.3、性能考虑
+            
+            - 5.4、经验总结
+
+   ## jvm原理
+   
+   - 一、jvm组成和运行原理：
+                
+        - 1.1.1、jvm的组成
+            
+            - 1.1.1.1、JVM在JDK中的位置。
+                
+               JDK是java开发的必备工具箱，JDK其中有一部分是JRE，JRE是JAVA运行环境，JVM则是JRE最核心的部分。
+               
+                <div>
+                    <img src="https://upload-images.jianshu.io/upload_images/9727275-87684dd3e1276ae0?imageMogr2/auto-orient/strip%7CimageView2/2/w/690" />
+                </div>
+                
+               OOM等异常的处理最终都得从JVM这儿来解决。HotSpot是Oracle关于JVM的商标，区别于IBM，HP等厂商开发的JVM。Java HotSpot Client VM和Java HotSpot Server VM是JDK关于JVM的两种不同的实现，前者可以减少启动时间和内存占用，而后者则提供更加优秀的程序运行速度。
+            
+            - 1.1.1.2、JVM的组成    
+            
+                参考上一篇：内容少一些，理解容易一点
+            
+        - 1.1.2、jvm运行原理简介
+            
+            - 1.1.2.1、 Java 程序被javac工具编译为.class字节码文件之后，我们执行java命令，该class文件便被JVM的ClassLoader加载，可以看出JVM的启动是通过JAVA Path下的java.exe或者java进行的。
+             
+            - 1.1.2.2、 JVM的初始化、运行到结束大概包括这么几步：
+            
+                调用操作系统API判断系统的CPU架构，根据对应CPU类型寻找位于JRE目录下的/lib/jvm.cfg文件，然后通过该配置文件找到对应的jvm.dll文件（如果我们参数中有-server或者-client， 则加载对应参数所指定的jvm.dll，启动指定类型的JVM），初始化jvm.dll并且挂接到JNIENV结构的实例上，之后就可以通过JNIENV实例装载并且处理class文件了。class文件是字节码文件，它按照JVM的规范，定义了变量，方法等的详细信息，JVM管理并且分配对应的内存来执行程序，同时管理垃圾回收。直到程序结束，一种情况是JVM的所有非守护线程停止，一种情况是程序调用System.exit()，JVM的生命周期也结束。
+    
+   - 二、VM的内存管理和垃圾回收           
+    
+        > JVM中的内存管理主要是指JVM对于Heap的管理，这是因为Stack，PCRegister和Native Method Stack都是和线程一样的生命周期，在线程结束时自然可以被再次使用。虽然说，Stack的管理不是重点，但是也不是完全不讲究的。
+        
+       - 2.1、栈的管理
+       
+         >  JVM允许栈的大小是固定的或者是动态变化的。在Oracle的关于参数设置的官方文档中有关于Stack的设置，是通过-Xss来设置其大小。关于Stack的默认大小对于不同机器有不同的大小，并且不同厂商或者版本号的jvm的实现其大小也不同，如下表是HotSpot的默认大小：
+                 
+            <div>
+               <img src="https://upload-images.jianshu.io/upload_images/9727275-37e54d95032bfade.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/700" />
+            </div>
+             
+           - 2.1.1、
+                
+               我们一般通过减少常量，参数的个数来减少栈的增长，在程序设计时，我们把一些常量定义到一个对象中，然后来引用他们可以体现这一点。另外，少用递归调用也可以减少栈的占用因为栈帧中会存储父栈帧，递归会导致父栈帧也在存或状态，所以如果递归调用过深就会导致栈内存被大量占用，甚至出现StackOverFlow。栈是不需要垃圾回收的，尽管说垃圾回收是java内存管理的一个很热的话题，栈中的对象如果用垃圾回收的观点来看，他永远是live状态，是可以reachable的，所以也不需要回收，他占有的空间随着Thread的结束而释放。
+               
+               关于栈一般会发生以下两种异常：
+               
+                - 1.当线程中的计算所需要的栈超过所允许大小时，会抛出StackOverflowError。
+               
+                - 2.当Java栈试图扩展时，没有足够的存储器来实现扩展，JVM会报OutOfMemoryError。 
+               
+               另外栈上有一点得注意的是，对于本地代码调用，可能会在栈中申请内存，比如C调用malloc()，而这种情况下，GC是管不着的，需要我们在程序中，手动管理栈内存，使用free()方法释放内存。
+                   
+       - 2.2、堆的管理
+       
+            <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-e9e1e522f549e6e9?imageMogr2/auto-orient/strip%7CimageView2/2/w/548" />
+            </div>
+            
+            上图是 Heap和PermanentSapce的组合图，其中 Eden区里面存着是新生的对象，From Space和To Space中存放着是每次垃圾回收后存活下来的对象，所以每次垃圾回收后，Eden区会被清空。 存活下来的对象先是放到From Space，当From Space满了之后移动到To Space。当To Space满了之后移动到Old Space。Survivor的两个区是对称的，没先后关系，所以同一个区中可能同时存在从Eden复制过来 对象，和从前一个Survivor复制过来的对象，而复制到年老区的只有从第一个Survivor复制过来的对象。而且，Survivor区总有一个是空的。同时，根据程序需要，jvm提供对Survivor区复制次数的配置（-XX:MaxTenuringThreshold参数），即经过多少次复制后仍然存活的对象会被放到老年区，通过增多两个Survivor区复制的次数可以增加对象在年轻代中的存在时间，减少被放到年老代的可能。
+            
+            Old Space中则存放生命周期比较长的对象，而且有些比较大的新生对象也放在Old Space中，通过-XX:PretenureSizeThreshold设置，超过此大小的新生对象会直接放入老年区。
+            
+            堆的大小通过-Xms和-Xmx来指定最小值和最大值，通过-Xmn来指定Young Generation的大小（一些老版本也用-XX:NewSize指定）， 即上图中的Eden加FromSpace和ToSpace的总大小。然后通过-XX:NewRatio来指定Eden区的大小，在Xms和Xmx相等的情况下，该参数不需要设置。通过-XX：SurvivorRatio来设置Eden和一个Survivor区的比值。
+            
+            堆异常分为两种，一种是Out ofMemory(OOM)，一种是Memory Leak(ML)。MemoryLeak最终将导致OOM。实际应用中表现为：从Console看，内存监控曲线一直在顶部，程序响应慢，从线程看，大部分的线程在进行GC，占用比较多的CPU，最终程序异常终止，报OOM。OOM发生的时间不定，有短的一个小时，有长的10天一个月的。关于异常的处理，确定OOM/ML异常后，一定要注意保护现场，可以dump heap，如果没有现场则开启GCFlag收集垃圾回收日志，然后进行分析，确定问题所在。如果问题不是ML的话，一般通过增加Heap，增加物理内存来解决问题，是的话，就修改程序逻辑。
+            
+            在此我向大家推荐一个架构学习交流群。交流学习群号：575745314 里面会分享一些资深架构师录制的视频录像：有Spring，MyBatis，Netty源码分析，高并发、高性能、分布式、微服务架构的原理，JVM性能优化、分布式架构等这些成为架构师必备的知识体系。还能领取免费的学习资源，目前受益良多
+            
+       - 2.3、垃圾回收
+        
+            - 2.3.1、触发条件：
+                
+               对象没有被引用，
+               
+               作用域发生未捕捉异常，
+               
+               程序正常执行完毕，
+               
+               程序执行了System.exit()，
+               
+               程序发生意外终止。
+                            
+            - 2.3.2、JVM中标记垃圾使用的是一种根搜索算法
+                
+                > 简单的说，就是从一个叫GC Roots的对象开始，向下搜索，如果一个对象不能达到GC Roots对象的时候，说明它可以被回收了。这种算法比一种叫做引用计数法的垃圾标记算法要好，因为它避免了当两个对象啊互相引用时无法被回收的现象。
+                            
+            - 2.3.3、JVM中对于被标记为垃圾的对象进行回收时又分为了一下3种算法：
+                
+                - 2.3.3.1、标记清除算法，该算法是从根集合扫描整个空间，标记存活的对象，然后在扫描整个空间对没有被标记的对象进行回收，这种算法在存活对象较多时比较高效，但会产生内存碎片。
+                
+                - 2.3.3.2、复制算法，该算法是从根集合扫描，并将存活的对象复制到新的空间，这种算法在存活对象少时比较高效。
+                
+                - 2.3.3.3、标记整理算法，标记整理算法和标记清除算法一样都会扫描并标记存活对象，在回收未标记对象的同时会整理被标记的对象，解决了内存碎片的问题。
+            
+            - 2.3.4、JVM中，不同的 内存区域作用和性质不一样，使用的垃圾回收算法也不一样，所以JVM中又定义了几种不同的垃圾回收器（图中连线代表两个回收器可以同时使用）：
+            
+                <div>
+                    <img src="https://upload-images.jianshu.io/upload_images/9727275-9600e675187f8f34?imageMogr2/auto-orient/strip%7CimageView2/2/w/547" />
+                </div>
+            
+                - 1.Serial GC。从名字上看，串行GC意味着是一种单线程的，所以它要求收集的时候所有的线程暂停。这对于高性能的应用是不合理的，所以串行GC一般用于Client模式的JVM中。
+                
+                - 2.ParNew GC。是在SerialGC的基础上，增加了多线程机制。但是如果机器是单CPU的，这种收集器是比SerialGC效率低的。
+                
+                - 3.Parrallel ScavengeGC。这种收集器又叫吞吐量优先收集器，而吞吐量=程序运行时间/(JVM执行回收的时间+程序运行时间),假设程序运行了100分钟，JVM的垃圾回收占用1分钟，那么吞吐量就是99%。ParallelScavenge GC由于可以提供比较不错的吞吐量，所以被作为了server模式JVM的默认配置。
+                
+                - 4.ParallelOld是老生代并行收集器的一种，使用了标记整理算法，是JDK1.6中引进的，在之前老生代只能使用串行回收收集器。
+                
+                - 5.Serial Old是老生代client模式下的默认收集器，单线程执行，同时也作为CMS收集器失败后的备用收集器。
+                
+                - 6.CMS又称响应时间优先回收器，使用标记清除算法。他的回收线程数为(CPU核心数+3)/4，所以当CPU核心数为2时比较高效些。CMS分为4个过程：初始标记、并发标记、重新标记、并发清除。
+                
+                - 7.GarbageFirst（G1）。比较特殊的是G1回收器既可以回收Young Generation，也可以回收Tenured Generation。它是在JDK6的某个版本中才引入的，性能比较高，同时注意了吞吐量和响应时间。
+                
+                对于垃圾收集器的组合使用可以通过下表中的参数指定：
+                    
+                 > 默认的GC种类可以通过jvm.cfg或者通过jmap dump出heap来查看，一般我们通过jstat -gcutil [pid] 1000可以查看每秒gc的大体情况，或者可以在启动参数中加入：-verbose:gc-XX:+PrintGCTimeStamps -XX:+PrintGCDetails -Xloggc:./gc.log来记录GC日志。
+                 
+                GC中有一种情况叫做Full GC，以下几种情况会触发Full GC：
+                
+                 - 1.Tenured Space空间不足以创建打的对象或者数组，会执行FullGC，并且当FullGC之后空间如果还不够，那么会OOM:java heap space。
+                    
+                 - 2.Permanet Generation的大小不足，存放了太多的类信息，在非CMS情况下回触发FullGC。如果之后空间还不够，会OOM:PermGen space。
+                    
+                 - 3.CMS GC时出现promotion failed和concurrent mode failure时，也会触发FullGC。promotion failed是在进行Minor GC时，survivor space放不下、对象只能放入旧生代，而此时旧生代也放不下造成的；concurrentmode failure是在执行CMS GC的过程中同时有对象要放入旧生代，而此时旧生代空间不足造成的，因为CMS是并发执行的，执行GC的过程中可能也会有对象被放入旧生代。
+                    
+                 - 4.判断MinorGC后，要晋升到TenuredSpace的对象大小大于TenuredSpace的大小，也会触发FullGC。
+                    
+                   可以看出，当FullGC频繁发生时，一定是内存出问题了。
+                    
+   - 三、JVM的数据格式规范和Class文件
+   
+      - 3.1、数据类型规范
+      
+        > 依据冯诺依曼的计算机理论，计算机最后处理的都是二进制的数，而JVM是怎么把java文件最后转化成了各个平台都可以识别的二进制呢？JVM自己定义了一个抽象的存储数据单位，叫做Word。一个字足够大以持有byte、char、short、int、float、reference或者returnAdress的一个值，两个字则足够持有更大的类型long、double。它通常是主机平台一个指针的大小，如32位的平台上，字是32位。
+        
+        整形：
+            
+        <div>
+            <img src="https://upload-images.jianshu.io/upload_images/9727275-a2a0ba3ced2b4a01.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/700" />
+        </div>
+        
+        returnAddress类型的值是Java虚拟机指令的操作码的指针。
+        
+        对比java的基本数据类型，jvm的规范中没有boolean类型。这是因为jvm中堆boolean的操作是通过int类型来进行处理的，而boolean数组则是通过byte数组来进行处理。
+        
+        至于String，我们知道它存储在常量池中，但他不是基本数据类型，之所以可以存在常量池中，是因为这是JVM的一种规定。如果查看String源码，我们就会发现，String其实就是一个基于基本数据类型char的数组。
+        
+      - 3.2、字节码文件
+      
+          通过字节码文件的格式我们可以看出jvm是如何规范数据类型的。下面是ClassFile的结构：
+          
+          其中u1、u2、u4分别代表1、2、4个字节无符号数。
+          
+             magic：
+          
+          魔数，魔数的唯一作用是确定这个文件是否为一个能被虚拟机所接受的Class文件。魔数值固定为0xCAFEBABE，不会改变。
+          
+          minor_version、major_version：
+          
+          分别为Class文件的副版本和主版本。它们共同构成了Class文件的格式版本号。不同版本的虚拟机实现支持的Class文件版本号也相应不同，高版本号的虚拟机可以支持低版本的Class文件，反之则不成立。
+          
+          constant_pool_count：
+          
+          常量池计数器，constant_pool_count的值等于constant_pool表中的成员数加1。
+          
+          constant_pool[]：
+          
+          常量池，constant_pool是一种表结构，它包含Class文件结构及其子结构中引用的所有字符串常量、类或接口名、字段名和其它常量。常量池不同于其他，索引从1开始到constant_pool_count -1。
+          
+          access_flags：
+          
+          访问标志，access_flags是一种掩码标志，用于表示某个类或者接口的访问权限及基础属性。access_flags的取值范围和相应含义见下表：
+          
+          <div>
+              <img src="https://upload-images.jianshu.io/upload_images/9727275-f9247a3225a54bd2?imageMogr2/auto-orient/strip%7CimageView2/2/w/552" />
+          </div>
+          
+          this_class：
+          
+          类索引，this_class的值必须是对constant_pool表中项目的一个有效索引值。constant_pool表在这个索引处的项必须为CONSTANT_Class_info类型常量，表示这个Class文件所定义的类或接口。
+          
+          super_class：
+          
+          父类索引，对于类来说，super_class的值必须为0或者是对constant_pool表中项目的一个有效索引值。如果它的值不为0，那constant_pool表在这个索引处的项必须为CONSTANT_Class_info类型常量，表示这个Class文件所定义的类的直接父类。当然，如果某个类super_class的值是0，那么它必定是java.lang.Object类，因为只有它是没有父类的。
+          
+          interfaces_count：
+          
+          接口计数器，interfaces_count的值表示当前类或接口的直接父接口数量。
+          
+          interfaces[]：
+          
+          接口表，interfaces[]数组中的每个成员的值必须是一个对constant_pool表中项目的一个有效索引值，它的长度为interfaces_count。每个成员interfaces[i] 必须为CONSTANT_Class_info类型常量。
+          
+          fields_count：
+          
+          字段计数器，fields_count的值表示当前Class文件fields[]数组的成员个数。
+          
+          fields[]：
+          
+          字段表，fields[]数组中的每个成员都必须是一个fields_info结构的数据项，用于表示当前类或接口中某个字段的完整描述。
+          
+          methods_count：
+          
+          方法计数器，methods_count的值表示当前Class文件methods[]数组的成员个数。
+          
+          methods[]：
+          
+          方法表，methods[]数组中的每个成员都必须是一个method_info结构的数据项，用于表示当前类或接口中某个方法的完整描述。
+          
+          attributes_count：
+          
+          属性计数器，attributes_count的值表示当前Class文件attributes表的成员个数。
+          
+          attributes[]：
+          
+          属性表，attributes表的每个项的值必须是attribute_info结构。
+          
+      - 3.1、jvm指令集
+      
+          在Java虚拟机的指令集中，大多数的指令都包含了其操作所对应的数据类型信息。举个例子，iload指令用于从局部变量表中加载int型的数据到操作数栈中，而fload指令加载的则是float类型的数据。这两条指令的操作可能会是由同一段代码来实现的，但它们必须拥有各自独立的操作符。
+          
+          对于大部分为与数据类型相关的字节码指令，他们的操作码助记符中都有特殊的字符来表明专门为哪种数据类型服务：i代表对int类型的数据操作，l代表long，s代表short，b代表byte，c代表char，f代表float，d代表double，a代表reference。也有一些指令的助记符中没有明确的指明操作类型的字母，例如arraylength指令，它没有代表数据类型的特殊字符，但操作数永远只能是一个数组类型的对象。还有另外一些指令，例如无条件跳转指令goto则是与数据类型无关的。
+          
+          由于Java虚拟机的操作码长度只有一个字节，所以包含了数据类型的操作码对指令集的设计带来了很大的压力（只有256个指令）：如果每一种与数据类型相关的指令都支持Java虚拟机所有运行时数据类型的话，那恐怕就会超出一个字节所能表示的数量范围了。因此，Java虚拟机的指令集对于特定的操作只提供了有限的类型相关指令去支持它，换句话说，指令集将会故意被设计成非完全独立的（Not Orthogonal，即并非每种数据类型和每一种操作都有对应的指令）。有一些单独的指令可以在必要的时候用来将一些不支持的类型转换为可被支持的类型。
+          
+          通过查阅jvm指令集和其对应的数据类型的关系发现，大部分的指令都没有支持整数类型byte、char和short，甚至没有任何指令支持boolean类型。编译器会在编译期或运行期会将byte和short类型的数据带符号扩展（Sign-Extend）为相应的int类型数据，将boolean和char类型数据零位扩展（Zero-Extend）为相应的int类型数据。与之类似的，在处理boolean、byte、short和char类型的数组时，也会转换为使用对应的int类型的字节码指令来处理。因此，大多数对于boolean、byte、short和char类型数据的操作，实际上都是使用相应的对int类型作为运算类型（Computational Type）。
+      
+      - 四、一个java类的实例分析   
+      
+           <div>
+               <img src="https://upload-images.jianshu.io/upload_images/9727275-4d5cf3422fde4e45.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/520" />
+           </div>
+           
+           通过javap工具我们能看到这个简单的类的结构，如下：
+           
+           <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-fbb691bccf995ee8?imageMogr2/auto-orient/strip%7CimageView2/2/w/669" />
+           </div>
+           
+           我们可以看到一些信息包括主副版本号、常量池、ACC_FLAGS等，再来打开Class文件看一下：
+            
+           <div>
+              <img src="https://upload-images.jianshu.io/upload_images/9727275-708a8281b6c54d3b?imageMogr2/auto-orient/strip%7CimageView2/2/w/700" />
+           </div>
+           
+           根据前面所述的ClassFile结构，我们来分析下：
+           
+           <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-537f4b1103df65ef?imageMogr2/auto-orient/strip%7CimageView2/2/w/487" />
+           </div>
+           
+           可以看到前4个字节为魔数，也就是0xCAFEBABE，这里都是十六进制。
+           
+           <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-638caebdeb6adcba?imageMogr2/auto-orient/strip%7CimageView2/2/w/489" />
+           </div>
+           
+           魔数后2个字节为副版本号，这里副版本号是0.
+           
+           <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-0f8d2f9063f0b099?imageMogr2/auto-orient/strip%7CimageView2/2/w/486" />
+           </div>
+           
+           再后2个字节是主版本号0x0033，转为十进制，主版本号是51，和Javap工具所看到的一样，这里我用的JDK版本是1.7。
+           
+           <div>
+                <img src="https://upload-images.jianshu.io/upload_images/9727275-8f1afd626543e111?imageMogr2/auto-orient/strip%7CimageView2/2/w/489" />
+           </div>
+           
+           这两个字节是常量池计数器，常量池的数量为0x0017，转为十进制是23，也就是说常量池的索引为1~22，这与Javap所看到的也相符。
+           
+           常量池计数器后面就是常量池的内容，我们根据javap所看到的信息找到最后一个常量池项java/lang/Object，在字节码中找到对应的地方：
+           
+           <div>
+              <img src="https://upload-images.jianshu.io/upload_images/9727275-49004ff977489b74?imageMogr2/auto-orient/strip%7CimageView2/2/w/632" />
+           </div>
+           
+           常量池后面两个字节是访问标志access_flags：
+           
+           <div>
+               <img src="https://upload-images.jianshu.io/upload_images/9727275-00552e34a6539a73?imageMogr2/auto-orient/strip%7CimageView2/2/w/489" />
+           </div>
+           
+           值为0x0021，在javap中我们看到这个类的标志是
+                
+           <div>
+               <img src="https://upload-images.jianshu.io/upload_images/9727275-86244d9fe9fc04c7?imageMogr2/auto-orient/strip%7CimageView2/2/w/250" />
+           </div>
+           
+           其中ACC_PUBLIC的值为0x0001，ACC_SUPER的值为0x0020，与字节码是相匹配的。
+           
+           至于ClassFile的其他结构，包括this_class、super_class、接口计数器、接口等等都可以通过同样的方法进行分析，这里就不再多说了。
+           
+           在此我向大家推荐一个架构学习交流群。交流学习群号：575745314 里面会分享一些资深架构师录制的视频录像：有Spring，MyBatis，Netty源码分析，高并发、高性能、分布式、微服务架构的原理，JVM性能优化、分布式架构等这些成为架构师必备的知识体系。还能领取免费的学习资源，目前受益良多
+   
+   - 五、关于jvm优化
+   
+        > 不管是YGC还是Full GC,GC过程中都会对导致程序运行中中断,正确的选择不同的GC策略,调整JVM、GC的参数，可以极大的减少由于GC工作，而导致的程序运行中断方面的问题，进而适当的提高Java程序的工作效率。但是调整GC是以个极为复杂的过程，由于各个程序具备不同的特点，如：web和GUI程序就有很大区别（Web可以适当的停顿，但GUI停顿是客户无法接受的），而且由于跑在各个机器上的配置不同（主要cup个数，内存不同），所以使用的GC种类也会不同。
+          
+        - 5.1、gc策略
+        
+            现在比较常用的是分代收集（generational collection,也是SUN VM使用的,J2SE1.2之后引入），即将内存分为几个区域，将不同生命周期的对象放在不同区域里:younggeneration，tenured generation和permanet generation。绝大部分的objec被分配在young generation(生命周期短)，并且大部分的object在这里die。当younggeneration满了之后，将引发minor collection(YGC)。在minor collection后存活的object会被移动到tenured generation(生命周期比较长)。最后，tenured generation满之后触发major collection。major collection（Full gc）会触发整个heap的回收，包括回收young generation。permanet generation区域比较稳定，主要存放classloader信息。
+            
+             young generation有eden、2个survivor 区域组成。其中一个survivor区域一直是空的，是eden区域和另一个survivor区域在下一次copy collection后活着的objecy的目的地。object在survivo区域被复制直到转移到tenured区。
+            
+            我们要尽量减少 Full gc 的次数(tenuredgeneration一般比较大,收集的时间较长,频繁的Full gc会导致应用的性能收到严重的影响)。
+            
+            JVM(采用分代回收的策略)，用较高的频率对年轻的对象(young generation)进行YGC，而对老对象(tenuredgeneration)较少(tenuredgeneration 满了后才进行)进行Full GC。这样就不需要每次GC都将内存中所有对象都检查一遍。
+            
+            GC不会在主程序运行期对PermGen Space进行清理，所以如果你的应用中有很多CLASS(特别是动态生成类，当然permgen space存放的内容不仅限于类)的话,就很可能出现PermGen Space错误。
+            
+        - 5.2、内存申请过程
+        
+            - 1.JVM会试图为相关Java对象在Eden中初始化一块内存区域；
+            
+            - 2.当Eden空间足够时，内存申请结束。否则到下一步；
+            
+            - 3.JVM试图释放在Eden中所有不活跃的对象（minor collection），释放后若Eden空间4.仍然不足以放入新对象，则试图将部分Eden中活跃对象放入Survivor区；
+            
+            - 5.Survivor区被用来作为Eden及old的中间交换区域，当OLD区空间足够时，Survivor区的对象会被移到Old区，否则会被保留在Survivor区；
+            
+            - 6.当old区空间不够时，JVM会在old区进行major collection；
+            
+            - 7.完全垃圾收集后，若Survivor及old区仍然无法存放从Eden复制过来的部分对象，导致JVM无法在Eden区为新对象创建内存区域，则出现"Out of memory错误"；
+            
+        - 5.3、性能考虑
+        
+            对于GC的性能主要有2个方面的指标：吞吐量throughput（工作时间不算gc的时间占总的时间比）和暂停pause（gc发生时app对外显示的无法响应）。
+            
+            - 1.Total Heap
+            
+                      默认情况下，vm会增加/减少heap大小以维持free space在整个vm中占的比例，这个比例由MinHeapFreeRatio和MaxHeapFreeRatio指定。
+                
+                一般而言，server端的app会有以下规则：
+                
+                对vm分配尽可能多的memory；
+                
+                将Xms和Xmx设为一样的值。如果虚拟机启动时设置使用的内存比较小，这个时候又需要初始化很多对象，虚拟机就必须重复地增加内存。
+                
+                处理器核数增加，内存也跟着增大。
+            
+            - 2.The Young Generation
+            
+                  另外一个对于app流畅性运行影响的因素是younggeneration的大小。young generation越大，minor collection越少；但是在固定heap size情况下，更大的young generation就意味着小的tenured generation，就意味着更多的major collection(major collection会引发minorcollection)。
+            
+                  NewRatio反映的是young和tenuredgeneration的大小比例。NewSize和MaxNewSize反映的是young generation大小的下限和上限，将这两个值设为一样就固定了younggeneration的大小（同Xms和Xmx设为一样）。
+            
+                  如果希望，SurvivorRatio也可以优化survivor的大小，不过这对于性能的影响不是很大。SurvivorRatio是eden和survior大小比例。
+            
+            一般而言，server端的app会有以下规则：
+            
+            首先决定能分配给vm的最大的heap size，然后设定最佳的young generation的大小；
+            
+            如果heap size固定后，增加young generation的大小意味着减小tenured generation大小。让tenured generation在任何时候够大，能够容纳所有live的data（留10%-20%的空余）。
+            
+        - 5.4、经验总结        
