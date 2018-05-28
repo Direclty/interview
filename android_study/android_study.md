@@ -1691,26 +1691,256 @@
 
 ### 项目经验   
     
-   * 开源库的使用
+####开源库的使用：
    
-   * 源码分析
+####源码分析：
         
-        * Retrofit：
-            
-            - 1、Retrofit的设计风格
-            
-            - 2、RestfulApi的概念
-            
-            - 3、Retrofit的核心实现方式动态代理
-            
-            - 4、动态代理的优缺点
-            
-            - 5、如何优化
-            
-        * RxJava：
+* Retrofit：
+    
+    - 1、Retrofit的设计风格
+    
+    - 2、RestfulApi的概念
+    
+    - 3、Retrofit的核心实现方式动态代理
+    
+    - 4、动态代理的优缺点
+    
+    - 5、如何优化
+    
+* RxJava：
+
+* OkHttp：
         
-        * OkHttp：
+#### 推送：
+
+   <div>
+        <img src="http://upload-images.jianshu.io/upload_images/944365-fec7d4a655878955.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+   </div>
+   
+
+    
+* 解决方案1：C2DM
+
+    原理：
         
+     <div>
+           <img src="http://upload-images.jianshu.io/upload_images/944365-26f71d19ece2c7f5.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+     </div> 
+    
+    C2DM(Cloudto Device Messaging)
+    
+    <div>
+        <img src="http://upload-images.jianshu.io/upload_images/944365-aba2023aff9e30b5.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+    </div>
+    
+    * 优点 :
+    
+      C2DM提供了一个简单的、轻量级的机制，允许服务器可以通知移动应用程序直接与服务器进行通信，以便于从服务器获取应用程序更新和用户数据。
+      
+    * 缺点 
+    
+      依赖于Google官方提供的C2DM服务器，但在国内使用Google服务需要翻墙，成本较大；
+      需要用户手机安装Google服务。但由于Android机型、系统的碎片化 & 国内环境，国内的Android系统都自动去除Google服务，假如要使用C2DM服务，这意味着用户还得去安装Google服务，成本较大。
+
+* 解决方法2：轮询
+    
+    * 原理: 
+    
+      基于Pull方式
+        
+    * 具体描述：
+     
+      应用程序隔固定时间主动与服务器进行连接并查询是否有新的消息
+        
+    * 优点：
+     
+      实时性好
+    
+    * 缺点： 
+    
+        成本大，需要自己实现与服务器之间的通信，例如消息排队等；
+    到达率不确定，考虑轮询的频率：太低可能导致消息的延迟；太高，更费客户端的资源（CPU资源、网络流量、系统电量）和服务器资源（网络带宽）
+    
+* 解决方法3：SMS信令推送
+    
+    * 原理 
+    
+        基于Push方式
+        
+    * 具体描述 
+    
+        服务器有新消息时，发送1条类似短信的信令给客户端，客户端通过拦截信令，解析消息内容 / 向服务器获取信息
+        
+    * 优点：
+     
+        可实现完全的实时操作
+        
+    * 缺点 
+    
+        成本高（主要是短信资费的支出）
+
+* 解决方法4：MQTT协议
+
+    * 定义 
+    
+      轻量级的消息发布/订阅协议
+      
+    * 原理 
+    
+      基于Push方式，wmqtt.jar 是IBM提供的MQTT协议的实现，原理如下图：
+    
+      <div>
+          <img src="http://upload-images.jianshu.io/upload_images/944365-325b5691b6570474.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+      </div>
+      
+    * 更多关于MQTT协议：
+     
+      1. [项目实例源] (https://github.com/tokudu/AndroidPushNotificationsDemo)
+      
+      2. [一个采用PHP书写的服务器端] (https://github.com/tokudu/PhpMQTTClient)
+      
+      3. [Jar包下载地址](http://www-01.ibm.com/support/docview.wss?rs=171&uid=swg24006006)，并加入自己的Android应用程序中。
+       
+      4. 拓展：RSMB是从MQTT协议引申出来的另外一种解决方案：简单的MQTT代理，详情[请点击](https://www.ibm.com/developerworks/community/groups/service/html/communityview?communityUuid=d5bedadd-e46f-4c97-af89-22d65ffee070)
+
+* 解决方法5：XMPP协议
+    
+    * 定义 
+    
+        Extensible Messageing and Presence Protocol，可扩展消息与存在协议，是基于可扩展标记语言（XML）的协议，是目前主流的四种IM协议之一
+  
+    * 其他三种：
+  
+        即时信息和空间协议（IMPP）
+        
+        空间和即时信息协议（PRIM）
+        
+        即时通讯和空间平衡扩充的进程开始协议SIP（SIMPLE）
+        
+    * 原理 
+    
+        XMPP中定义了三个角色，分别是客户端、服务器和网关
+        
+        * 客户端 
+        
+            1. 通过 TCP/IP与XMPP 服务器连接，然后在之上传输与即时通讯相关的指令（XML）；
+             
+            2. 解析组织好的 XML 信息包； 
+            
+            3. 理解消息数据类型。
+        
+            * XMPP的核心：
+            
+                XML流传输协议（在网络上分片断发送XML的流协议），也是即时通讯指令的传递基础，即XMPP用TCP传的是XML流 
+                
+                1. 与即时通讯相关的指令，在以前要么用2进制的形式发送（比如QQ），要么用纯文本指令加空格加参数加换行符的方式发送（比如MSN）。
+                
+                2. XMPP传输的即时通讯指令的逻辑与以往相仿，只是协议的形式变成了XML格式的纯文本
+               
+        * 服务器 
+        
+            1. 监听客户端连接，并直接与客户端应用程序通信（客户端信息记录） 
+            
+            2. 与其他 XMPP 服务器通信；
+        
+        * 网关 
+        
+            与异构即时通信系统进行通信
+            
+            > 异构系统包括SMS（短信），MSN，ICQ等
+            
+        通信能够在这三者的任意两个之间双向发生。
+        
+        原理流程：
+        
+        * 优点 
+        
+            开源：可通过修改其源代码来适应我们的应用程序。
+            
+            简单：XML易于解析和阅读；将复杂性从客户端转移到了服务器端
+            
+            可拓展性强：继承了在XML环境中灵活的发展性，可进一步对协议进行扩展，实现更为完善的功能。 
+            
+            > GTalk、QQ、IM等都用这个协议
+        
+        * 缺点 
+        
+            如果将消息从服务器上推送出去，则不管消息是否成功到达客户端手机上。
+        
+            源码实例：有一个很棒的基于XMPP协议的java开源Android push notification：Androidpn[项目地址](https://sourceforge.net/projects/androidpn/)，大家有兴趣可以去看看
+        
+           更多关于XMPP协议更加详细请[点击](http://www.cnblogs.com/hanyonglu/archive/2012/03/04/2378956.html)
+        
+* 解析方法6：使用第三方平台
+    
+    * 现今主流的推送平台分为 
+    
+        1. 手机厂商类：小米推送、华为推送。 
+        2. 第三方平台类：友盟推送、极光推送、云巴（基于MQTT） 
+        3. BAT大厂的平台推送：阿里云移动推送、腾讯信鸽推送、百度云推送
+    
+    * 具体各推送平台的优缺点请看我写的文章：[Android推送：第三方消息推送平台详细解析](https://www.jianshu.com/p/d77eaca4e52a)
+
+* 解析方法7：自己搭建
+    
+    如果你的产品对于消息推送具备较高的功能和性能要求，同时对安全性要求非常高的话，自己搭建可能是最好的方式，但这种方式无疑成本是最高的。
+    
+    至此，关于Android推送的解决方案讲解完毕。
+
+##### Android推送 与 iOS推送的区别：
+
+   <div>
+        <img src="http://upload-images.jianshu.io/upload_images/944365-6e01ffdc4c7e87c9.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+   </div>
+   
+##### 总结：
+    
+   * 经过上面的详细讲解，相信大家现在对Android中消息推送的解决方案已经非常了解，总结如下 
+    
+   <div>
+        <img src="http://upload-images.jianshu.io/upload_images/944365-6a22b06fbb77e6e3.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" />
+   </div>
+   
+   <br/>
+   
+   > 解决方案没有优劣，要具具体使用场景而定。但一般来说，个人建议使用第三方平台推送，成本低+抵达率高
+   
+   * 关于Android消息推送的其他知识，具体请看：
+    
+     Android消息推送：[手把手教你集成小米推送](https://www.jianshu.com/p/b1134bebc2d4) 
+     
+     Android推送：[第三方消息推送平台详细解析](https://www.jianshu.com/p/d77eaca4e52a)
+
+##### 视频相关：
+
+   * 现在开源的视频播放开源框架：
+    
+        * MediaPlayer：
+        
+        * ExoPlayer：
+        
+        * B站的ijKPlayer：
+        
+            基于FFMPEG，支持Android与IOS，还封装了谷歌亲儿子MediaPlayer与干儿子<a href="https://github.com/google/ExoPlayer">EXOPlayer</a>(为什么要用EXO)，支持直播流，Star-9000多与fork-3000的视频播放器你支持安利。
+            
+        * [大牛直播](https://github.com/daniulive/SmarterStreaming)
+        
+        * [GSYVideoPlayer：视频播放器（IJKplayer、ExoPlayer、MediaPlayer），基于：IJKPlayer]()
+        
+        * [JiaoZiVideoPlayer](https://github.com/lipangit/JiaoZiVideoPlayer)
+            
+        * [金山云播放：](https://github.com/FirePrayer/KSYMediaPlayer_Android)
+        
+        * [Vitamio](https://github.com/yixia/VitamioBundle)
+        
+   * 边播边存：
+   
+   * 列表中播放视频全屏展示、自动小窗口：
+   
+   * 视频踩坑记：
+   
+   [参考：Android 列表视频的全屏、自动小窗口优化实践](https://www.jianshu.com/p/bb5876f34902)
+    
 ### 数据库
     
  
